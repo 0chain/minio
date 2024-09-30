@@ -6,4 +6,5 @@ use (
 	.
 	./client-api
 	./cmd/gateway/zcn/multipart-test/s3gateway
+	./zsearch
 )
