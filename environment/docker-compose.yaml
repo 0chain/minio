@@ -55,6 +55,7 @@ services:
       MINIO_WRITE_BACK_UPLOAD_WORKERS: 20
       MINIO_UPLOAD_QUEUE_TH: 10
       INDEX_SVC_URL: "http://zsearch:3003"
+      CONTENT_SEARCH_ENABLE: "true"
     links:
       - logsearchapi:logsearchapi
     volumes:

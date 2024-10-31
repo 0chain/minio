@@ -114,12 +114,13 @@ type cacheObjects struct {
 	// number of accesses after which to cache an object
 	after int
 	// commit objects in async manner
-	commitWriteback    bool
-	commitWritethrough bool
-	maxCacheFileSize   int64
-	uploadWorkers      int
-	uploadQueueTh      int
-	indexSvcUrl        string
+	commitWriteback     bool
+	commitWritethrough  bool
+	maxCacheFileSize    int64
+	uploadWorkers       int
+	uploadQueueTh       int
+	indexSvcUrl         string
+	contentSearchEnable string
 	// if true migration is in progress from v1 to v2
 	migrating bool
 	// retry queue for writeback cache mode to reattempt upload to backend
@@ -985,14 +986,15 @@ func (c *cacheObjects) uploadObject(ctx context.Context, oi ObjectInfo) {
 		time.Sleep(time.Second * time.Duration(retryCnt%10+1))
 		c.queueWritebackRetry(oi)
 	}
-
-	log.Println("indexing file started")
-	cReader2, _, bErr2 := dcache.Get(ctx, oi.Bucket, oi.Name, nil, http.Header{}, ObjectOptions{})
-	if bErr2 != nil {
-		return
+	if c.contentSearchEnable == "true" {
+		log.Println("indexing file started")
+		cReader2, _, bErr2 := dcache.Get(ctx, oi.Bucket, oi.Name, nil, http.Header{}, ObjectOptions{})
+		if bErr2 != nil {
+			return
+		}
+		defer cReader2.Close()
+		c.indexFile(cReader2, oi.Bucket, oi.Name)
 	}
-	defer cReader2.Close()
-	c.indexFile(cReader2, oi.Bucket, oi.Name)
 }
 
 func (c *cacheObjects) indexFile(body io.ReadCloser, bucket string, object string) {
@@ -1061,6 +1063,7 @@ func newServerCacheObjects(ctx context.Context, config cache.Config) (CacheObjec
 		uploadWorkers:           config.UploadWorkers,
 		uploadQueueTh:           config.UploadQueueTh,
 		indexSvcUrl:             config.IndexSvcUrl,
+		contentSearchEnable:     config.ContentSearchEnable,
 		cacheStats:              newCacheStats(),
 		listTree:                newThreadSafeListTree(),
 		writeBackUploadBufferCh: make(chan ObjectInfo, 100000),
