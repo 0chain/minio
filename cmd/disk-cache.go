@@ -853,7 +853,7 @@ func (c *cacheObjects) PutObject(ctx context.Context, bucket, object string, r *
 		coi := oi.Clone()
 		//go c.uploadObject(GlobalContext, oi) // use schedule to upload in batch
 		select {
-		case c.writeBackInputCh <- oi:
+		case c.writeBackInputCh <- coi:
 		default:
 		}
 		return oi, nil
