@@ -850,6 +850,7 @@ func (c *cacheObjects) PutObject(ctx context.Context, bucket, object string, r *
 		}
 		objPath := oi.Bucket + "/" + oi.Name
 		c.listTree.Insert(objPath, oi)
+		coi := oi.Clone()
 		//go c.uploadObject(GlobalContext, oi) // use schedule to upload in batch
 		select {
 		case c.writeBackInputCh <- oi:
