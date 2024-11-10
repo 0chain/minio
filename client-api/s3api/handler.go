@@ -137,6 +137,14 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		JSON(w, 200, statObjectResponse)
+	case "search":
+		query := r.URL.Query().Get("query")
+		searchResObj, err := searchObject(query)
+		if err != nil {
+			JSON(w, 500, map[string]string{"error": err.Error()})
+			break
+		}
+		JSON(w, 200, searchResObj)
 	default:
 		JSON(w, 500, map[string]string{"message": "feature not avaliable"})
 	}
