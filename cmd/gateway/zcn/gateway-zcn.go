@@ -461,12 +461,14 @@ func (zob *zcnObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	ref, err = getSingleRegularRef(zob.alloc, remotePath)
 	if err != nil {
 		if isPathNoExistError(err) {
+			log.Println("path does not exist: ", remotePath)
 			return result, nil
 		}
 		return
 	}
 
 	if ref.Type == fileType {
+		log.Println("path is file: ", remotePath)
 		if strings.HasSuffix(prefix, "/") {
 			return minio.ListObjectsInfo{
 					IsTruncated: false,
@@ -561,6 +563,7 @@ func (zob *zcnObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	result.NextMarker = nextMarker
 	result.Objects = objects
 	result.Prefixes = prefixes
+	log.Printf("listobject cache prefix %s marker %s delim %s maxkey %d result %d \n", prefix, marker, delimiter, maxKeys, len(objects))
 	return
 }
 

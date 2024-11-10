@@ -501,7 +501,6 @@ func (c *cacheObjects) CopyObject(ctx context.Context, srcBucket, srcObject, dst
 
 // ListObjects from disk cache
 func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, delimiter string, maxKeys int) (result ListObjectsInfo, err error) {
-	log.Printf("listobject cache prefix %s marker %s delim %s maxkey %d \n", prefix, marker, delimiter, maxKeys)
 	objInfos := []ObjectInfo{}
 	prefixes := map[string]bool{}
 
@@ -564,6 +563,7 @@ func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	if objectCount > maxKeys {
 		isTruncated = true
 	}
+	log.Printf("listobject cache prefix %s marker %s delim %s maxkey %d result %d \n", prefix, marker, delimiter, maxKeys, len(objInfos))
 	return ListObjectsInfo{
 		Objects:     objInfos,
 		Prefixes:    unique(uPrefixes),
