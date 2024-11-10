@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	dmodel "zsearch/delete/model"
 	"zsearch/indexer/model"
 
 	"github.com/blevesearch/bleve/v2"
@@ -35,6 +36,10 @@ func IndexFiles(index bleve.Index, files []model.FileInfo) error {
 		}
 	}
 	return nil
+}
+
+func DeleteFileFromIndex(index bleve.Index, dReq dmodel.DelReq) error {
+	return index.Delete(dReq.Path)
 }
 
 func CleanText(input string) string {
