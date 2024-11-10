@@ -180,7 +180,7 @@ func (c *cacheObjects) updateMetadataIfChanged(ctx context.Context, dcache *disk
 func (c *cacheObjects) DeleteObject(ctx context.Context, bucket, object string, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	// delete from backend and then delete from cache always
 	objInfoB, errB := c.InnerDeleteObjectFn(ctx, bucket, object, opts)
-
+	log.Println("delete object from cache", bucket, object)
 	if c.isCacheExclude(bucket, object) || c.skipCache() {
 		return
 	}
