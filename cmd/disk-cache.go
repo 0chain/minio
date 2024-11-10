@@ -31,6 +31,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/armon/go-radix"
 	objectlock "github.com/minio/minio/internal/bucket/object/lock"
 	"github.com/minio/minio/internal/color"
 	"github.com/minio/minio/internal/config/cache"
@@ -39,7 +40,6 @@ import (
 	"github.com/minio/minio/internal/logger"
 	"github.com/minio/minio/internal/sync/errgroup"
 	"github.com/minio/pkg/wildcard"
-	art "github.com/plar/go-adaptive-radix-tree"
 )
 
 const (
@@ -180,7 +180,7 @@ func (c *cacheObjects) updateMetadataIfChanged(ctx context.Context, dcache *disk
 func (c *cacheObjects) DeleteObject(ctx context.Context, bucket, object string, opts ObjectOptions) (objInfo ObjectInfo, err error) {
 	// delete from backend and then delete from cache always
 	objInfoB, errB := c.InnerDeleteObjectFn(ctx, bucket, object, opts)
-
+	log.Println("delete object from cache", bucket, object)
 	if c.isCacheExclude(bucket, object) || c.skipCache() {
 		return
 	}
@@ -501,7 +501,6 @@ func (c *cacheObjects) CopyObject(ctx context.Context, srcBucket, srcObject, dst
 
 // ListObjects from disk cache
 func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, delimiter string, maxKeys int) (result ListObjectsInfo, err error) {
-	log.Printf("listobject cache prefix %s marker %s delim %s maxkey %d \n", prefix, marker, delimiter, maxKeys)
 	objInfos := []ObjectInfo{}
 	prefixes := map[string]bool{}
 
@@ -530,32 +529,30 @@ func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	rootprefix := bucket + "/" + prefix
 	rootMarker := bucket + "/" + marker
 	objectCount := 0
-	leafFilter := func(n art.Node) bool {
-		if n.Kind() == art.Leaf {
-			if strings.HasPrefix(string(n.Key()), rootprefix) {
-				if marker == "" || string(n.Key()) > rootMarker {
-					trimmed := strings.TrimPrefix(string(n.Key()), rootprefix)
-					parts := strings.Split(trimmed, delimiter)
-					if len(parts) > 0 && parts[0] != "" {
-						if (len(objInfos) + len(prefixes)) < maxKeys {
-							if len(parts) == 1 {
-								ob, ok := n.Value().(ObjectInfo)
-								if ok {
-									objInfos = append(objInfos, ob)
-								}
-							} else if delimiter != "" {
-								dir := prefix + parts[0] + delimiter
-								if marker == "" || dir > marker {
-									prefixes[dir] = true
-								}
+	leafFilter := func(key string, value any) bool {
+		if strings.HasPrefix(key, rootprefix) {
+			if marker == "" || key > rootMarker {
+				trimmed := strings.TrimPrefix(key, rootprefix)
+				parts := strings.Split(trimmed, delimiter)
+				if len(parts) > 0 && parts[0] != "" {
+					if (len(objInfos) + len(prefixes)) < maxKeys {
+						if len(parts) == 1 {
+							ob, ok := value.(ObjectInfo)
+							if ok {
+								objInfos = append(objInfos, ob)
+							}
+						} else if delimiter != "" {
+							dir := prefix + parts[0] + delimiter
+							if marker == "" || dir > marker {
+								prefixes[dir] = true
 							}
 						}
 					}
-					objectCount++
 				}
+				objectCount++
 			}
 		}
-		return true
+		return false
 	}
 	c.prefixSearch(rootprefix, leafFilter)
 	var uPrefixes []string
@@ -566,6 +563,7 @@ func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	if objectCount > maxKeys {
 		isTruncated = true
 	}
+	log.Printf("listobject cache prefix %s marker %s delim %s maxkey %d result %d \n", prefix, marker, delimiter, maxKeys, len(objInfos))
 	return ListObjectsInfo{
 		Objects:     objInfos,
 		Prefixes:    unique(uPrefixes),
@@ -573,13 +571,13 @@ func (c *cacheObjects) ListObjects(ctx context.Context, bucket, prefix, marker, 
 	}, nil
 }
 
-func (c *cacheObjects) prefixSearch(rootprefix string, leafFilter art.Callback) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("recovered from panic from list tree listobj")
-		}
-	}()
-	c.listTree.ForEachPrefix([]byte(rootprefix), leafFilter)
+func (c *cacheObjects) prefixSearch(rootprefix string, leafFilter radix.WalkFn) {
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		log.Println("recovered from panic from list tree listobj")
+	// 	}
+	// }()
+	c.listTree.ForEachPrefix(rootprefix, leafFilter)
 }
 
 func (c *cacheObjects) ListObjectsV2(ctx context.Context, bucket, prefix, continuationToken, delimiter string, maxKeys int, fetchOwner bool, startAfter string) (result ListObjectsV2Info, err error) {
@@ -851,10 +849,11 @@ func (c *cacheObjects) PutObject(ctx context.Context, bucket, object string, r *
 			return ObjectInfo{}, err
 		}
 		objPath := oi.Bucket + "/" + oi.Name
-		c.listTree.Insert([]byte(objPath), oi)
+		c.listTree.Insert(objPath, oi)
+		coi := oi.Clone()
 		//go c.uploadObject(GlobalContext, oi) // use schedule to upload in batch
 		select {
-		case c.writeBackInputCh <- oi:
+		case c.writeBackInputCh <- coi:
 		default:
 		}
 		return oi, nil
@@ -988,12 +987,12 @@ func (c *cacheObjects) uploadObject(ctx context.Context, oi ObjectInfo) {
 }
 
 func (c *cacheObjects) deleteFromListTree(key string) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("Recovered from panic from list tree delete")
-		}
-	}()
-	c.listTree.Delete([]byte(key))
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		log.Println("Recovered from panic from list tree delete")
+	// 	}
+	// }()
+	c.listTree.Delete(key)
 }
 
 func (c *cacheObjects) queueWritebackRetry(oi ObjectInfo) {
@@ -1012,10 +1011,6 @@ func (c *cacheObjects) queueWritebackRetry(oi ObjectInfo) {
 func newServerCacheObjects(ctx context.Context, config cache.Config) (CacheObjectLayer, error) {
 	// list of disk caches for cache "drives" specified in config.json or MINIO_CACHE_DRIVES env var.
 	cache, migrateSw, err := newCache(config)
-	if err != nil {
-		return nil, err
-	}
-	uploadGoPool, err := ants.NewMultiPool(10, 40, ants.RoundRobin)
 	if err != nil {
 		return nil, err
 	}
@@ -1174,7 +1169,7 @@ func (c *cacheObjects) recreateListTreeOnStartUp() {
 				if !ok || status == CommitComplete.String() {
 					return nil
 				}
-				c.listTree.Insert([]byte(objInfo.Bucket+"/"+objInfo.Name), objInfo)
+				c.listTree.Insert(objInfo.Bucket+"/"+objInfo.Name, objInfo)
 				return nil
 			}
 
