@@ -193,7 +193,26 @@ func (c *cacheObjects) DeleteObject(ctx context.Context, bucket, object string, 
 	}
 	dcache.Delete(ctx, bucket, object)
 	c.deleteFromListTree(bucket + "/" + object)
+	if c.contentSearchEnable == "true" {
+		go c.deleteObjectFromIndex(bucket, object)
+	}
 	return objInfoB, errB
+}
+
+func (c *cacheObjects) deleteObjectFromIndex(bucket string, object string) {
+	url := fmt.Sprintf(c.indexSvcUrl+"/delete?bucketName=%s&objName=%s", bucket, object)
+	dreq, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		log.Println("err creating delete req", err)
+		return
+	}
+	client := &http.Client{}
+	resp, err := client.Do(dreq)
+	if err != nil {
+		log.Println("err sending delete file req", err)
+		return
+	}
+	defer resp.Body.Close()
 }
 
 // DeleteObjects batch deletes objects in slice, and clears any cached entries
