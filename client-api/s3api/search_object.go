@@ -1,15 +1,20 @@
 package s3api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"net/url"
 )
 
-func searchObject(query string) (interface{}, error) {
-	url := fmt.Sprintf("http://zsearch:3003/search?query=%s", query)
-	resp, err := http.Get(url)
+func searchObject(query string) ([]byte, error) {
+	u, _ := url.Parse("http://zsearch:3003/search")
+	q := u.Query()
+	q.Set("query", query)
+	u.RawQuery = q.Encode()
+	log.Println("search url", u.String())
+	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %w", err)
 	}
@@ -19,12 +24,5 @@ func searchObject(query string) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-
-	var result interface{}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
-	}
-
-	return result, nil
-
+	return body, nil
 }

@@ -10,6 +10,7 @@ import (
 	"zsearch/utility"
 
 	"github.com/blevesearch/bleve/v2"
+	bq "github.com/blevesearch/bleve/v2/search/query"
 )
 
 func SearchHandler(index bleve.Index) http.HandlerFunc {
@@ -26,10 +27,14 @@ func SearchHandler(index bleve.Index) http.HandlerFunc {
 			return
 		}
 		cquery = strings.TrimSpace(cquery)
-		cquery = "*" + cquery + "*"
 		log.Println("clean query", cquery)
-		matchQuery := bleve.NewWildcardQuery(cquery)
-		//matchQuery := bleve.NewQueryStringQuery(cquery)
+		words := strings.Fields(cquery)
+		var queries []bq.Query
+		for _, word := range words {
+			word = "*" + word + "*"
+			queries = append(queries, bleve.NewWildcardQuery(word))
+		}
+		matchQuery := bleve.NewConjunctionQuery(queries...) // Or use NewDisjunctionQuery for "OR"
 		searchRequest := bleve.NewSearchRequest(matchQuery)
 		searchResult, err := index.Search(searchRequest)
 		if err != nil {

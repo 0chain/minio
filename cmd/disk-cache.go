@@ -200,8 +200,16 @@ func (c *cacheObjects) DeleteObject(ctx context.Context, bucket, object string, 
 }
 
 func (c *cacheObjects) deleteObjectFromIndex(bucket string, object string) {
-	url := fmt.Sprintf(c.indexSvcUrl+"/delete?bucketName=%s&objName=%s", bucket, object)
-	dreq, err := http.NewRequest(http.MethodDelete, url, nil)
+	u, err := url.Parse(c.indexSvcUrl + "/delete")
+	if err != nil {
+		log.Println("err parsing url of zsearch delete", err)
+		return
+	}
+	q := u.Query()
+	q.Set("bucketName", bucket)
+	q.Set("objName", object)
+	u.RawQuery = q.Encode()
+	dreq, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		log.Println("err creating delete req", err)
 		return
@@ -1017,7 +1025,7 @@ func (c *cacheObjects) uploadObject(ctx context.Context, oi ObjectInfo) {
 }
 
 func (c *cacheObjects) indexFile(body io.ReadCloser, bucket string, object string) {
-	fmt.Println("indexing file func")
+	log.Println("indexing file", bucket+"/"+object)
 
 	indexUrl := c.indexSvcUrl + "/zindex"
 	u, err := url.Parse(indexUrl)
