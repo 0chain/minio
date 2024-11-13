@@ -3,11 +3,12 @@ package zcn
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/0chain/gosdk/core/client"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/0chain/gosdk/core/client"
 
 	"github.com/0chain/gosdk/core/conf"
 	"github.com/0chain/gosdk/core/logger"
@@ -103,7 +104,7 @@ func initializeSDK(configDir, allocid string, nonce int64) error {
 
 	conf.InitClientConfig(&cfg)
 
-	sdk.SetNumBlockDownloads(10)
+	sdk.SetNumBlockDownloads(100)
 	return nil
 }
 
