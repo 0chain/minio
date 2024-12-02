@@ -36,21 +36,23 @@ const (
 
 // Config represents cache config settings
 type Config struct {
-	Enabled           bool     `json:"-"`
-	Drives            []string `json:"drives"`
-	Expiry            int      `json:"expiry"`
-	MaxUse            int      `json:"maxuse"`
-	Quota             int      `json:"quota"`
-	Exclude           []string `json:"exclude"`
-	After             int      `json:"after"`
-	WatermarkLow      int      `json:"watermark_low"`
-	WatermarkHigh     int      `json:"watermark_high"`
-	Range             bool     `json:"range"`
-	CacheCommitMode   string   `json:"commit"`
-	WriteBackInterval int      `json:"wb_interval"`
-	MaxCacheFileSize  int64    `json:"max_cache_file_size"`
-	UploadWorkers     int      `json:"upload_workers"`
-	UploadQueueTh     int      `json:"upload_queue_th"`
+	Enabled             bool     `json:"-"`
+	Drives              []string `json:"drives"`
+	Expiry              int      `json:"expiry"`
+	MaxUse              int      `json:"maxuse"`
+	Quota               int      `json:"quota"`
+	Exclude             []string `json:"exclude"`
+	After               int      `json:"after"`
+	WatermarkLow        int      `json:"watermark_low"`
+	WatermarkHigh       int      `json:"watermark_high"`
+	Range               bool     `json:"range"`
+	CacheCommitMode     string   `json:"commit"`
+	WriteBackInterval   int      `json:"wb_interval"`
+	MaxCacheFileSize    int64    `json:"max_cache_file_size"`
+	UploadWorkers       int      `json:"upload_workers"`
+	UploadQueueTh       int      `json:"upload_queue_th"`
+	IndexSvcUrl         string   `json:"index_svc_url"`
+	ContentSearchEnable string   `json:"content_search_enable"`
 }
 
 // UnmarshalJSON - implements JSON unmarshal interface for unmarshalling

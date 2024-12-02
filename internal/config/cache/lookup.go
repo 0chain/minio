@@ -38,20 +38,22 @@ const (
 	Range         = "range"
 	Commit        = "commit"
 
-	EnvCacheDrives        = "MINIO_CACHE_DRIVES"
-	EnvCacheExclude       = "MINIO_CACHE_EXCLUDE"
-	EnvCacheExpiry        = "MINIO_CACHE_EXPIRY"
-	EnvCacheMaxUse        = "MINIO_CACHE_MAXUSE"
-	EnvCacheQuota         = "MINIO_CACHE_QUOTA"
-	EnvCacheAfter         = "MINIO_CACHE_AFTER"
-	EnvCacheWatermarkLow  = "MINIO_CACHE_WATERMARK_LOW"
-	EnvCacheWatermarkHigh = "MINIO_CACHE_WATERMARK_HIGH"
-	EnvCacheRange         = "MINIO_CACHE_RANGE"
-	EnvCacheCommit        = "MINIO_CACHE_COMMIT"
-	EnvWriteBackInterval  = "MINIO_WRITE_BACK_INTERVAL"
-	EnvMaxCacheFileSize   = "MINIO_MAX_CACHE_FILE_SIZE"
-	EnvUploadWorkers      = "MINIO_WRITE_BACK_UPLOAD_WORKERS"
-	EnvUploadQueueTh      = "MINIO_UPLOAD_QUEUE_TH"
+	EnvCacheDrives         = "MINIO_CACHE_DRIVES"
+	EnvCacheExclude        = "MINIO_CACHE_EXCLUDE"
+	EnvCacheExpiry         = "MINIO_CACHE_EXPIRY"
+	EnvCacheMaxUse         = "MINIO_CACHE_MAXUSE"
+	EnvCacheQuota          = "MINIO_CACHE_QUOTA"
+	EnvCacheAfter          = "MINIO_CACHE_AFTER"
+	EnvCacheWatermarkLow   = "MINIO_CACHE_WATERMARK_LOW"
+	EnvCacheWatermarkHigh  = "MINIO_CACHE_WATERMARK_HIGH"
+	EnvCacheRange          = "MINIO_CACHE_RANGE"
+	EnvCacheCommit         = "MINIO_CACHE_COMMIT"
+	EnvWriteBackInterval   = "MINIO_WRITE_BACK_INTERVAL"
+	EnvMaxCacheFileSize    = "MINIO_MAX_CACHE_FILE_SIZE"
+	EnvUploadWorkers       = "MINIO_WRITE_BACK_UPLOAD_WORKERS"
+	EnvUploadQueueTh       = "MINIO_UPLOAD_QUEUE_TH"
+	EnvIndexSvcUrl         = "INDEX_SVC_URL"
+	EnvContentSearchEnable = "CONTENT_SEARCH_ENABLE"
 
 	EnvCacheEncryptionKey = "MINIO_CACHE_ENCRYPTION_SECRET_KEY"
 
@@ -259,6 +261,13 @@ func LookupConfig(kvs config.KVS) (Config, error) {
 			err := errors.New("upload queue threshold shoud be a number")
 			return cfg, config.ErrInvalidUploadQueueTh(err)
 		}
+	}
+
+	if indexSvcUrl := env.Get(EnvIndexSvcUrl, "http://zsearch:3003"); indexSvcUrl != "" {
+		cfg.IndexSvcUrl = indexSvcUrl
+	}
+	if contentSearchEnable := env.Get(EnvContentSearchEnable, "false"); contentSearchEnable != "" {
+		cfg.ContentSearchEnable = contentSearchEnable
 	}
 	return cfg, nil
 }

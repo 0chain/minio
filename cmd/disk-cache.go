@@ -24,6 +24,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -113,12 +114,13 @@ type cacheObjects struct {
 	// number of accesses after which to cache an object
 	after int
 	// commit objects in async manner
-	commitWriteback    bool
-	commitWritethrough bool
-	maxCacheFileSize   int64
-	uploadWorkers      int
-	uploadQueueTh      int
-
+	commitWriteback     bool
+	commitWritethrough  bool
+	maxCacheFileSize    int64
+	uploadWorkers       int
+	uploadQueueTh       int
+	indexSvcUrl         string
+	contentSearchEnable string
 	// if true migration is in progress from v1 to v2
 	migrating bool
 	// retry queue for writeback cache mode to reattempt upload to backend
@@ -191,7 +193,34 @@ func (c *cacheObjects) DeleteObject(ctx context.Context, bucket, object string, 
 	}
 	dcache.Delete(ctx, bucket, object)
 	c.deleteFromListTree(bucket + "/" + object)
+	if c.contentSearchEnable == "true" {
+		go c.deleteObjectFromIndex(bucket, object)
+	}
 	return objInfoB, errB
+}
+
+func (c *cacheObjects) deleteObjectFromIndex(bucket string, object string) {
+	u, err := url.Parse(c.indexSvcUrl + "/delete")
+	if err != nil {
+		log.Println("err parsing url of zsearch delete", err)
+		return
+	}
+	q := u.Query()
+	q.Set("bucketName", bucket)
+	q.Set("objName", object)
+	u.RawQuery = q.Encode()
+	dreq, err := http.NewRequest(http.MethodDelete, u.String(), nil)
+	if err != nil {
+		log.Println("err creating delete req", err)
+		return
+	}
+	client := &http.Client{}
+	resp, err := client.Do(dreq)
+	if err != nil {
+		log.Println("err sending delete file req", err)
+		return
+	}
+	defer resp.Body.Close()
 }
 
 // DeleteObjects batch deletes objects in slice, and clears any cached entries
@@ -984,6 +1013,42 @@ func (c *cacheObjects) uploadObject(ctx context.Context, oi ObjectInfo) {
 		time.Sleep(time.Second * time.Duration(retryCnt%10+1))
 		c.queueWritebackRetry(oi)
 	}
+	if c.contentSearchEnable == "true" {
+		log.Println("indexing file started")
+		cReader2, _, bErr2 := dcache.Get(ctx, oi.Bucket, oi.Name, nil, http.Header{}, ObjectOptions{})
+		if bErr2 != nil {
+			return
+		}
+		defer cReader2.Close()
+		c.indexFile(cReader2, oi.Bucket, oi.Name)
+	}
+}
+
+func (c *cacheObjects) indexFile(body io.ReadCloser, bucket string, object string) {
+	log.Println("indexing file", bucket+"/"+object)
+
+	indexUrl := c.indexSvcUrl + "/zindex"
+	u, err := url.Parse(indexUrl)
+	if err != nil {
+		log.Println("err parsing url of zsearch", err)
+		return
+	}
+	query := u.Query()
+	query.Set("bucketName", bucket)
+	query.Set("objName", object)
+	u.RawQuery = query.Encode()
+	req, err := http.NewRequest("PUT", u.String(), body)
+	if err != nil {
+		log.Println("err creating index req", err)
+		return
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("err sending file for indexing", err)
+		return
+	}
+	defer resp.Body.Close()
 }
 
 func (c *cacheObjects) deleteFromListTree(key string) {
@@ -1024,6 +1089,8 @@ func newServerCacheObjects(ctx context.Context, config cache.Config) (CacheObjec
 		maxCacheFileSize:        config.MaxCacheFileSize,
 		uploadWorkers:           config.UploadWorkers,
 		uploadQueueTh:           config.UploadQueueTh,
+		indexSvcUrl:             config.IndexSvcUrl,
+		contentSearchEnable:     config.ContentSearchEnable,
 		cacheStats:              newCacheStats(),
 		listTree:                newThreadSafeListTree(),
 		writeBackUploadBufferCh: make(chan ObjectInfo, 100000),
