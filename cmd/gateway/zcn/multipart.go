@@ -153,7 +153,7 @@ func (zob *zcnObjects) newMultiPartUpload(localStorageDir, bucket, object, conte
 			zw.Apply(lz4.CompressionLevelOption(lz4.Level1)) //nolint:errcheck
 		}
 		st := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Minute)
 		defer cancel()
 		for {
 			select {
