@@ -97,12 +97,21 @@ func initializeSDK(configDir, allocid string, nonce int64) error {
 	zcncore.SetLogLevel(3)
 	sdk.SetLogLevel(3)
 
-	err = client.InitSDK(string(walletBytes), cfg.BlockWorker, cfg.ChainID, cfg.SignatureScheme, nonce, false, true, cfg.MinSubmit, cfg.MinConfirmation, cfg.ConfirmationChainLength, cfg.SharderConsensous)
+	err = client.InitSDK("{}", cfg.BlockWorker, cfg.ChainID, cfg.SignatureScheme, nonce, false, cfg.MinSubmit, cfg.MinConfirmation, cfg.ConfirmationChainLength, cfg.SharderConsensous)
 	if err != nil {
 		return err
 	}
 
 	conf.InitClientConfig(&cfg)
+
+	err = zcncore.SetGeneralWalletInfo(string(walletBytes), cfg.SignatureScheme)
+	if err != nil {
+		return err
+	}
+
+	if client.GetClient().IsSplit {
+		zcncore.RegisterZauthServer(cfg.ZauthServer)
+	}
 
 	sdk.SetNumBlockDownloads(100)
 	return nil
