@@ -28,7 +28,7 @@ type serverOptions struct {
 	MaxConcurrentRequests int  `json:"max_concurrent_requests"`
 }
 
-func initializeSDK(configDir, allocid string, nonce int64) error {
+func initializeSDK(configDir, allocid string, nonce int64, walletDetails string) error {
 	if configDir == "" {
 		var err error
 		configDir, err = getDefaultConfigDir()
@@ -97,6 +97,10 @@ func initializeSDK(configDir, allocid string, nonce int64) error {
 	zcncore.SetLogLevel(3)
 	sdk.SetLogLevel(3)
 
+	walletInfo := string(walletBytes)
+	if walletDetails != "" {
+		walletInfo = walletDetails
+	}
 	err = client.InitSDK("{}", cfg.BlockWorker, cfg.ChainID, cfg.SignatureScheme, nonce, false, cfg.MinSubmit, cfg.MinConfirmation, cfg.ConfirmationChainLength, cfg.SharderConsensous)
 	if err != nil {
 		return err
