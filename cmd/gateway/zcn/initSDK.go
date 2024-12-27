@@ -108,7 +108,7 @@ func initializeSDK(configDir, allocid string, nonce int64, walletDetails string)
 
 	conf.InitClientConfig(&cfg)
 
-	err = zcncore.SetGeneralWalletInfo(string(walletBytes), cfg.SignatureScheme)
+	err = zcncore.SetGeneralWalletInfo(walletInfo, cfg.SignatureScheme)
 	if err != nil {
 		return err
 	}
